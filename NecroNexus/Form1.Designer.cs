@@ -43,6 +43,7 @@
             backupAllToolStripMenuItem = new ToolStripMenuItem();
             helpToolStripMenuItem = new ToolStripMenuItem();
             aboutToolStripMenuItem = new ToolStripMenuItem();
+            instructionsToolStripMenuItem = new ToolStripMenuItem();
             terminal = new RichTextBox();
             label1 = new Label();
             label2 = new Label();
@@ -52,7 +53,6 @@
             autoRestart = new CheckBox();
             experimentalCheckbox = new CheckBox();
             killServerButton = new Button();
-            instructionsToolStripMenuItem = new ToolStripMenuItem();
             menuStrip1.SuspendLayout();
             SuspendLayout();
             // 
@@ -62,7 +62,8 @@
             menuStrip1.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem, settingsToolStripMenuItem, backupToolStripMenuItem, helpToolStripMenuItem });
             menuStrip1.Location = new Point(0, 0);
             menuStrip1.Name = "menuStrip1";
-            menuStrip1.Size = new Size(1996, 42);
+            menuStrip1.Padding = new Padding(5, 2, 0, 2);
+            menuStrip1.Size = new Size(1126, 33);
             menuStrip1.TabIndex = 0;
             menuStrip1.Text = "menuStrip1";
             // 
@@ -70,27 +71,27 @@
             // 
             fileToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { installSteamToolStripMenuItem, installServerToolStripMenuItem, exitToolStripMenuItem });
             fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            fileToolStripMenuItem.Size = new Size(71, 38);
+            fileToolStripMenuItem.Size = new Size(54, 29);
             fileToolStripMenuItem.Text = "File";
             // 
             // installSteamToolStripMenuItem
             // 
             installSteamToolStripMenuItem.Name = "installSteamToolStripMenuItem";
-            installSteamToolStripMenuItem.Size = new Size(283, 44);
+            installSteamToolStripMenuItem.Size = new Size(214, 34);
             installSteamToolStripMenuItem.Text = "Install Steam";
             installSteamToolStripMenuItem.Click += installSteamToolStripMenuItem_Click;
             // 
             // installServerToolStripMenuItem
             // 
             installServerToolStripMenuItem.Name = "installServerToolStripMenuItem";
-            installServerToolStripMenuItem.Size = new Size(283, 44);
+            installServerToolStripMenuItem.Size = new Size(214, 34);
             installServerToolStripMenuItem.Text = "Install Server";
             installServerToolStripMenuItem.Click += installServerToolStripMenuItem_Click;
             // 
             // exitToolStripMenuItem
             // 
             exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            exitToolStripMenuItem.Size = new Size(283, 44);
+            exitToolStripMenuItem.Size = new Size(214, 34);
             exitToolStripMenuItem.Text = "Exit";
             exitToolStripMenuItem.Click += exitToolStripMenuItem_Click;
             // 
@@ -98,27 +99,27 @@
             // 
             settingsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { programFolderToolStripMenuItem, saveFolderToolStripMenuItem, logsFolderToolStripMenuItem });
             settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
-            settingsToolStripMenuItem.Size = new Size(120, 38);
+            settingsToolStripMenuItem.Size = new Size(92, 29);
             settingsToolStripMenuItem.Text = "Settings";
             // 
             // programFolderToolStripMenuItem
             // 
             programFolderToolStripMenuItem.Name = "programFolderToolStripMenuItem";
-            programFolderToolStripMenuItem.Size = new Size(311, 44);
+            programFolderToolStripMenuItem.Size = new Size(238, 34);
             programFolderToolStripMenuItem.Text = "Program Folder";
             programFolderToolStripMenuItem.Click += programFolderToolStripMenuItem_Click;
             // 
             // saveFolderToolStripMenuItem
             // 
             saveFolderToolStripMenuItem.Name = "saveFolderToolStripMenuItem";
-            saveFolderToolStripMenuItem.Size = new Size(311, 44);
+            saveFolderToolStripMenuItem.Size = new Size(238, 34);
             saveFolderToolStripMenuItem.Text = "Save Folder";
             saveFolderToolStripMenuItem.Click += saveFolderToolStripMenuItem_Click;
             // 
             // logsFolderToolStripMenuItem
             // 
             logsFolderToolStripMenuItem.Name = "logsFolderToolStripMenuItem";
-            logsFolderToolStripMenuItem.Size = new Size(311, 44);
+            logsFolderToolStripMenuItem.Size = new Size(238, 34);
             logsFolderToolStripMenuItem.Text = "Logs Folder";
             logsFolderToolStripMenuItem.Click += logsFolderToolStripMenuItem_Click;
             // 
@@ -126,20 +127,20 @@
             // 
             backupToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { backupSaveOnlyToolStripMenuItem, backupAllToolStripMenuItem });
             backupToolStripMenuItem.Name = "backupToolStripMenuItem";
-            backupToolStripMenuItem.Size = new Size(111, 38);
+            backupToolStripMenuItem.Size = new Size(85, 29);
             backupToolStripMenuItem.Text = "Backup";
             // 
             // backupSaveOnlyToolStripMenuItem
             // 
             backupSaveOnlyToolStripMenuItem.Name = "backupSaveOnlyToolStripMenuItem";
-            backupSaveOnlyToolStripMenuItem.Size = new Size(338, 44);
+            backupSaveOnlyToolStripMenuItem.Size = new Size(255, 34);
             backupSaveOnlyToolStripMenuItem.Text = "Backup Save Only";
             backupSaveOnlyToolStripMenuItem.Click += backupSaveOnlyToolStripMenuItem_Click;
             // 
             // backupAllToolStripMenuItem
             // 
             backupAllToolStripMenuItem.Name = "backupAllToolStripMenuItem";
-            backupAllToolStripMenuItem.Size = new Size(338, 44);
+            backupAllToolStripMenuItem.Size = new Size(255, 34);
             backupAllToolStripMenuItem.Text = "Backup All";
             backupAllToolStripMenuItem.Click += backupAllToolStripMenuItem_Click;
             // 
@@ -147,34 +148,43 @@
             // 
             helpToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { aboutToolStripMenuItem, instructionsToolStripMenuItem });
             helpToolStripMenuItem.Name = "helpToolStripMenuItem";
-            helpToolStripMenuItem.Size = new Size(84, 38);
+            helpToolStripMenuItem.Size = new Size(65, 29);
             helpToolStripMenuItem.Text = "Help";
             // 
             // aboutToolStripMenuItem
             // 
             aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            aboutToolStripMenuItem.Size = new Size(359, 44);
+            aboutToolStripMenuItem.Size = new Size(206, 34);
             aboutToolStripMenuItem.Text = "About";
             aboutToolStripMenuItem.Click += aboutToolStripMenuItem_Click;
+            // 
+            // instructionsToolStripMenuItem
+            // 
+            instructionsToolStripMenuItem.Name = "instructionsToolStripMenuItem";
+            instructionsToolStripMenuItem.Size = new Size(206, 34);
+            instructionsToolStripMenuItem.Text = "Instructions";
+            instructionsToolStripMenuItem.Click += instructionsToolStripMenuItem_Click;
             // 
             // terminal
             // 
             terminal.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             terminal.BackColor = Color.Black;
             terminal.ForeColor = Color.LimeGreen;
-            terminal.Location = new Point(1046, 265);
+            terminal.Location = new Point(359, 101);
+            terminal.Margin = new Padding(2);
             terminal.Name = "terminal";
             terminal.ReadOnly = true;
-            terminal.Size = new Size(898, 702);
+            terminal.Size = new Size(737, 454);
             terminal.TabIndex = 1;
             terminal.Text = "";
             // 
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new Point(1049, 213);
+            label1.Location = new Point(359, 74);
+            label1.Margin = new Padding(2, 0, 2, 0);
             label1.Name = "label1";
-            label1.Size = new Size(105, 32);
+            label1.Size = new Size(77, 25);
             label1.TabIndex = 2;
             label1.Text = "Terminal";
             // 
@@ -182,25 +192,28 @@
             // 
             label2.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             label2.AutoSize = true;
-            label2.Location = new Point(898, 995);
+            label2.Location = new Point(241, 576);
+            label2.Margin = new Padding(2, 0, 2, 0);
             label2.Name = "label2";
-            label2.Size = new Size(125, 32);
+            label2.Size = new Size(96, 25);
             label2.TabIndex = 3;
             label2.Text = "Command";
             // 
             // commandBox
             // 
             commandBox.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            commandBox.Location = new Point(1047, 995);
+            commandBox.Location = new Point(359, 576);
+            commandBox.Margin = new Padding(2);
             commandBox.Name = "commandBox";
-            commandBox.Size = new Size(897, 39);
+            commandBox.Size = new Size(737, 31);
             commandBox.TabIndex = 4;
             // 
             // startServer
             // 
-            startServer.Location = new Point(25, 119);
+            startServer.Location = new Point(19, 93);
+            startServer.Margin = new Padding(2);
             startServer.Name = "startServer";
-            startServer.Size = new Size(150, 46);
+            startServer.Size = new Size(115, 36);
             startServer.TabIndex = 5;
             startServer.Text = "Start Server";
             startServer.UseVisualStyleBackColor = true;
@@ -208,9 +221,10 @@
             // 
             // stopServer
             // 
-            stopServer.Location = new Point(25, 171);
+            stopServer.Location = new Point(19, 134);
+            stopServer.Margin = new Padding(2);
             stopServer.Name = "stopServer";
-            stopServer.Size = new Size(150, 46);
+            stopServer.Size = new Size(115, 36);
             stopServer.TabIndex = 6;
             stopServer.Text = "Stop Server";
             stopServer.UseVisualStyleBackColor = true;
@@ -219,9 +233,10 @@
             // autoRestart
             // 
             autoRestart.AutoSize = true;
-            autoRestart.Location = new Point(238, 129);
+            autoRestart.Location = new Point(183, 101);
+            autoRestart.Margin = new Padding(2);
             autoRestart.Name = "autoRestart";
-            autoRestart.Size = new Size(176, 36);
+            autoRestart.Size = new Size(136, 29);
             autoRestart.TabIndex = 7;
             autoRestart.Text = "Auto Restart";
             autoRestart.UseVisualStyleBackColor = true;
@@ -230,9 +245,10 @@
             // experimentalCheckbox
             // 
             experimentalCheckbox.AutoSize = true;
-            experimentalCheckbox.Location = new Point(238, 171);
+            experimentalCheckbox.Location = new Point(183, 134);
+            experimentalCheckbox.Margin = new Padding(2);
             experimentalCheckbox.Name = "experimentalCheckbox";
-            experimentalCheckbox.Size = new Size(184, 36);
+            experimentalCheckbox.Size = new Size(139, 29);
             experimentalCheckbox.TabIndex = 9;
             experimentalCheckbox.Text = "Experimental";
             experimentalCheckbox.TextImageRelation = TextImageRelation.ImageAboveText;
@@ -241,27 +257,21 @@
             // 
             // killServerButton
             // 
-            killServerButton.Location = new Point(25, 223);
+            killServerButton.Location = new Point(19, 174);
+            killServerButton.Margin = new Padding(2);
             killServerButton.Name = "killServerButton";
-            killServerButton.Size = new Size(150, 46);
+            killServerButton.Size = new Size(115, 36);
             killServerButton.TabIndex = 10;
             killServerButton.Text = "Kill Server";
             killServerButton.UseVisualStyleBackColor = true;
             killServerButton.Click += killServerButton_Click;
             // 
-            // instructionsToolStripMenuItem
-            // 
-            instructionsToolStripMenuItem.Name = "instructionsToolStripMenuItem";
-            instructionsToolStripMenuItem.Size = new Size(359, 44);
-            instructionsToolStripMenuItem.Text = "Instructions";
-            instructionsToolStripMenuItem.Click += instructionsToolStripMenuItem_Click;
-            // 
             // NecroNexus
             // 
-            AutoScaleDimensions = new SizeF(13F, 32F);
+            AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.DarkGray;
-            ClientSize = new Size(1996, 1117);
+            ClientSize = new Size(1126, 672);
             Controls.Add(killServerButton);
             Controls.Add(experimentalCheckbox);
             Controls.Add(autoRestart);
@@ -274,7 +284,8 @@
             Controls.Add(menuStrip1);
             Icon = (Icon)resources.GetObject("$this.Icon");
             MainMenuStrip = menuStrip1;
-            MinimumSize = new Size(2000, 1100);
+            Margin = new Padding(2);
+            MinimumSize = new Size(951, 590);
             Name = "NecroNexus";
             Text = "NecroNexus";
             menuStrip1.ResumeLayout(false);

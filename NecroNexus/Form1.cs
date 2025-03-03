@@ -4,6 +4,8 @@ using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Threading.Tasks;
+using System.Xml;
 
 namespace NecroNexus
 {
@@ -24,6 +26,7 @@ namespace NecroNexus
         private static readonly string ProgramBackupFolder = Path.Combine(InstallLocation, "Program Backups");
         private static readonly string ServerConfigPath = Path.Combine(ServerPath, "serverconfig.xml");
         private static readonly string LogsFolder = Path.Combine(ServerPath, "Logs");
+        private static readonly string AdminPath = Path.Combine(ServerPath, "UserDataFolder", "Saves", "serveradmin.xml");
 
         // Server process & logging
         private Process? serverProcess;
@@ -34,7 +37,7 @@ namespace NecroNexus
         #endregion
 
         #region Initialization
-        public NecroNexus()
+        public NecroNexus() // Main Function  
         {
             InitializeComponent();
             WriteToTerminal("[INFO] NecroNexus Online.");
@@ -87,13 +90,14 @@ namespace NecroNexus
         {
             await StartServer();
         }
-        private async void stopServer_Click(object sender, EventArgs e)
+        private async void stopServer_Click(object sender, EventArgs e) // Stop Server Gracefully  
         {
             await StopServer();
         }
-        private async void killServerButton_Click(object sender, EventArgs e)
+        private async void killServerButton_Click(object sender, EventArgs e) // Kill Server  
         {
             string processName = "7DaysToDieServer";
+            WriteToTerminal("[INFO] Locating and terminating 7 Days");
 
             await Task.Run(() =>
             {
@@ -112,11 +116,19 @@ namespace NecroNexus
                         WriteToTerminal($"❌ Failed to kill {processName}: {ex.Message}");
                     }
                 }
+                WriteToTerminal("[INFO] Termination Task Complete");
             });
         }
         private void autoRestart_CheckedChanged(object sender, EventArgs e) // Checkbox - Auto Restart  
         {
-            // TODO: Write restart function
+            if (autoRestart.Checked)
+            {
+                WriteToTerminal("🔄 Auto Restart Activated");
+            }
+            else
+            {
+                WriteToTerminal("🔄 Auto Restart Deactivated");
+            }
         }
         private void aboutToolStripMenuItem_Click(object sender, EventArgs e) // Help -> About  
         {
@@ -175,9 +187,18 @@ namespace NecroNexus
         {
             BackupUserDataFolder();
         }
-        private void backupAllToolStripMenuItem_Click(object sender, EventArgs e) // Backup All
+        private void backupAllToolStripMenuItem_Click(object sender, EventArgs e) // Backup All  
         {
             BackupAll();
+        }
+        private void instructionsToolStripMenuItem_Click(object sender, EventArgs e) // Instructions  
+        {
+            MessageBox.Show(
+            "Terminal and UserDataFolder are hardcoded.\n Other functions should be as expected",
+            "About NecroNexus",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information
+            );
         }
 
         #endregion
@@ -337,6 +358,19 @@ namespace NecroNexus
         }
         private async Task StartServer() // Start 7D Server  
         {
+            if (!Directory.Exists(ServerPath))
+            {
+                WriteToTerminal("[WARNING] Install Server First");
+                WriteToTerminal(ServerPath);
+                return;
+            }
+
+            if (!Directory.Exists(SteamCMDPath))
+            {
+                WriteToTerminal("[WARNING] Install SteamCMD First");
+                return;
+            }
+
             Process.GetProcessesByName("7DaysToDieServer").ToList().ForEach(p => p.Kill()); // kill any existing 7D Server.
             await FileSetup();
             try
@@ -428,7 +462,6 @@ namespace NecroNexus
             }
             return null;
         }
-
         private static void SendEnterKey(IntPtr hWnd)
         {
             if (hWnd != IntPtr.Zero)
@@ -436,40 +469,39 @@ namespace NecroNexus
                 SendKeys.SendWait("{ENTER}");
             }
         }
-
         private async Task StopServer()
         {
-            Debug.WriteLine("Searching for 7 Days to Die server process...");
+            WriteToTerminal("[INFO] Searching for 7 Days to Die server process...");
 
             Process? p = FindSevenDaysProcess();
             if (p == null)
             {
-                Debug.WriteLine("7 Days to Die server is not running.");
+                WriteToTerminal("[INFO] 7 Days to Die server is not running.");
                 return;
             }
 
-            Debug.WriteLine("Attempting to close 7 Days to Die gracefully...");
+            WriteToTerminal("[INFO] Attempting to close 7 Days to Die gracefully...");
 
             // 1️⃣ Bring the window to the foreground
             if (p.MainWindowHandle != IntPtr.Zero)
             {
-                Debug.WriteLine("Setting main window...");
+                WriteToTerminal("[INFO] Setting main window...");
                 SetForegroundWindow(p.MainWindowHandle);
             }
             else
             {
-                Debug.WriteLine("Main window handle is zero. The game might be running headless.");
+                WriteToTerminal("[INFO] Main window handle is zero. The game might be running headless.");
             }
 
             // 2️⃣ Send CloseMainWindow() command
-            Debug.WriteLine("Closing main window...");
+            WriteToTerminal("[INFO] Closing main window...");
             p.CloseMainWindow();
 
             // 3️⃣ Wait a moment
             await Task.Delay(1000);
 
             // 4️⃣ Send {ENTER} key using PostMessage()
-            Debug.WriteLine("Sending ENTER key to confirm shutdown...");
+            WriteToTerminal("[INFO] Sending ENTER key to confirm shutdown...");
             SendEnterKey(p.MainWindowHandle);
 
             // 5️⃣ Wait to see if it closes gracefully
@@ -478,11 +510,11 @@ namespace NecroNexus
             // 6️⃣ If the process is still running, force kill it
             if (!p.HasExited)
             {
-                Debug.WriteLine("Process did not exit gracefully. Forcing termination...");
+                WriteToTerminal("[INFO] Process did not exit gracefully. Forcing termination...");
                 p.Kill();
             }
 
-            Debug.WriteLine("7 Days to Die server has been stopped.");
+            Debug.WriteLine("[INFO] 7 Days to Die server has been stopped.");
             WriteToTerminal("[INFO] 7 Days Server stopped.");
         }
         #endregion
@@ -647,7 +679,7 @@ namespace NecroNexus
             }
 
         }
-        private async Task FileSetup()
+        private async Task FileSetup() // Check and create folders 
         {
             try
             {
@@ -687,8 +719,7 @@ namespace NecroNexus
                 Debug.WriteLine($"FileSetup() failed: {ex.Message}");
             }
         }
-
-        private static void CreateFolderIfNotExists(string path)
+        private static void CreateFolderIfNotExists(string path) // Create folders if not exist
         {
             if (!Directory.Exists(path))
             {
@@ -696,8 +727,7 @@ namespace NecroNexus
                 Debug.WriteLine($"Created folder: {path}");
             }
         }
-
-        public void EditServerConfig()
+        public void EditServerConfig() // Hardcode serverconfig.xml  
         {
             try
             {
@@ -761,17 +791,12 @@ namespace NecroNexus
             }
         }
 
+
+
         #endregion
 
-        private void instructionsToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            MessageBox.Show(
-            "Terminal and UserDataFolder are hardcoded.\n Other functions should be as expected",
-            "About NecroNexus",
-            MessageBoxButtons.OK,
-            MessageBoxIcon.Information
-            );
-        }
+
+
     }
 }
 
