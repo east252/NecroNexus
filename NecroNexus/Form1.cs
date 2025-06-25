@@ -124,10 +124,19 @@ namespace NecroNexus
             if (autoRestart.Checked)
             {
                 WriteToTerminal("🔄 Auto Restart Activated");
+
+                // ✅ If server is already running, start the monitor loop
+                if (serverProcess != null && !serverProcess.HasExited)
+                {
+                    monitorTokenSource?.Cancel(); // Cancel any existing monitor
+                    monitorTokenSource = new CancellationTokenSource();
+                    _ = Task.Run(() => MonitorServer(monitorTokenSource.Token));
+                }
             }
             else
             {
                 WriteToTerminal("🔄 Auto Restart Deactivated");
+                monitorTokenSource?.Cancel(); // Stop monitoring when unchecked
             }
         }
         private void aboutToolStripMenuItem_Click(object sender, EventArgs e) // Help -> About  
