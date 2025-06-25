@@ -185,7 +185,9 @@ namespace NecroNexus
         }
         private void backupSaveOnlyToolStripMenuItem_Click(object sender, EventArgs e) // Backup UserDataFolder 
         {
-            BackupUserDataFolder();
+            string? tempPath = CopyUserDataToTemp();
+            if (!string.IsNullOrEmpty(tempPath))
+                CompressBackupAsync(tempPath);
         }
         private void backupAllToolStripMenuItem_Click(object sender, EventArgs e) // Backup All  
         {
@@ -415,7 +417,9 @@ namespace NecroNexus
                 _ = Task.Run(() => StreamLogsToFiles(mainLogPath, errorLogPath));
 
                 // ✅ Start server monitoring to detect crashes
-                _ = Task.Run(() => MonitorServer());
+                monitorTokenSource?.Cancel(); // Stop any old monitor
+                monitorTokenSource = new CancellationTokenSource();
+                _ = Task.Run(() => MonitorServer(monitorTokenSource.Token));
 
                 // ✅ Ensure async behavior is correct
                 await Task.Delay(1);
@@ -427,12 +431,12 @@ namespace NecroNexus
                 WriteToTerminal($"❌ Error: {ex.Message}. See crash_log.txt for details.");
             }
         }
-        private async Task MonitorServer() // Monitor 7D Server  
+        private async Task MonitorServer(CancellationToken token) // Monitor for restart
         {
             WriteToTerminal("🛠️ Server monitoring started...");
             await Task.Delay(5000);
 
-            while (autoRestart.Checked)
+            while (autoRestart.Checked && !token.IsCancellationRequested)
             {
                 bool serverRunning = serverProcess != null && !serverProcess.HasExited;
 
@@ -440,8 +444,32 @@ namespace NecroNexus
                 {
                     WriteToTerminal("❌ Server has stopped! Attempting restart...");
                     await Task.Delay(5000);
+
+                    string? tempPath = null;
+
+                    // Step 1: copy save if last backup was over 30 minutes ago
+                    if ((DateTime.Now - lastBackupTime).TotalMinutes >= 30)
+                    {
+                        tempPath = CopyUserDataToTemp();
+                        if (!string.IsNullOrEmpty(tempPath))
+                        {
+                            lastBackupTime = DateTime.Now;
+                            WriteToTerminal("📦 Backup copied. Will compress after server starts.");
+                        }
+                    }
+                    else
+                    {
+                        WriteToTerminal("⏱ Skipping backup: last backup was less than 30 minutes ago.");
+                    }
+
+                    // Step 2: start server
                     await StartServer();
+
+                    // Step 3: compress backup in background (if any)
+                    if (!string.IsNullOrEmpty(tempPath))
+                        CompressBackupAsync(tempPath);
                 }
+
                 await Task.Delay(10000);
             }
         }
@@ -518,6 +546,7 @@ namespace NecroNexus
             WriteToTerminal("[INFO] 7 Days Server stopped.");
         }
         #endregion
+
         private void ProcessLogLine(string? line, string logPath, string errorLogPath) // Process Log Lines 
         {
             if (string.IsNullOrWhiteSpace(line)) return;
@@ -565,50 +594,62 @@ namespace NecroNexus
                 }
             }
         }
-        private void BackupUserDataFolder() // Backup User Data Folder to Backup  
+        private string? CopyUserDataToTemp()
         {
             try
             {
-                // Ensure Backup folder exists
                 if (!Directory.Exists(BackupFolder))
-                {
                     Directory.CreateDirectory(BackupFolder);
-                    WriteToTerminal($"Created backup directory: {BackupFolder}");
-                }
 
-                // Ensure UserDataFolder exists before copying
                 if (!Directory.Exists(UserDataFolder))
                 {
                     WriteToTerminal("UserDataFolder does not exist. Backup aborted.");
-                    MessageBox.Show("UserDataFolder not found!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return;
+                    return null;
                 }
 
-                // Create a timestamped backup folder inside Backup
                 string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
                 string tempBackupPath = Path.Combine(BackupFolder, $"UserDataBackup_{timestamp}");
                 Directory.CreateDirectory(tempBackupPath);
-
-                WriteToTerminal($"Backing up UserDataFolder to: {tempBackupPath}");
-
-                // Copy all files & subdirectories from UserDataFolder to the temp backup folder
+                WriteToTerminal($"Copying UserDataFolder to: {tempBackupPath}");
                 CopyDirectory(UserDataFolder, tempBackupPath);
-
-                // Create a ZIP file
-                string zipFilePath = Path.Combine(BackupFolder, $"UserDataBackup_{timestamp}.zip");
-                ZipFile.CreateFromDirectory(tempBackupPath, zipFilePath);
-
-                WriteToTerminal($"Backup completed: {zipFilePath}");
-
-                // Delete the temporary copied folder after compression
-                Directory.Delete(tempBackupPath, true);
-                WriteToTerminal("Temporary backup folder deleted.");
+                return tempBackupPath;
             }
             catch (Exception ex)
             {
-                WriteToTerminal($"Backup failed: {ex.Message}");
-                MessageBox.Show($"Backup failed: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                WriteToTerminal($"Backup copy failed: {ex.Message}");
+                return null;
             }
+        } // Copy files for zip/backup
+        private void CompressBackupAsync(string tempBackupPath)
+        {
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    Thread.Sleep(5000); // Give time to ensure server has launched
+
+                    if (Directory.Exists(tempBackupPath))
+                    {
+                        string zipFilePath = tempBackupPath + ".zip";
+                        ZipFile.CreateFromDirectory(tempBackupPath, zipFilePath);
+                        WriteToTerminal($"✅ Backup compressed: {zipFilePath}");
+
+                        try
+                        {
+                            Directory.Delete(tempBackupPath, true);
+                            WriteToTerminal("🧹 Temp folder deleted after compression.");
+                        }
+                        catch (Exception deleteEx)
+                        {
+                            WriteToTerminal($"❌ Failed to delete temp folder: {deleteEx.Message}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    WriteToTerminal($"❌ Compression failed: {ex.Message}");
+                }
+            });
         }
         private static void CopyDirectory(string sourceDir, string targetDir) // Copy folder, for Backup  
         {
@@ -790,14 +831,14 @@ namespace NecroNexus
                 Debug.WriteLine($"Failed to edit serverconfig.xml: {ex.Message}");
             }
         }
-
-
+        private CancellationTokenSource? monitorTokenSource = null; // Track the monitoring of the server
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            monitorTokenSource?.Cancel(); // stop background loop
+            base.OnFormClosing(e);        // continue closing
+        } // Kill loops when app killed
+        private DateTime lastBackupTime = DateTime.MinValue; // Track the last backup time
 
         #endregion
-
-
-
     }
 }
-
-
