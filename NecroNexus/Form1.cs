@@ -552,46 +552,81 @@ namespace NecroNexus
             if (string.IsNullOrWhiteSpace(line)) return;
             logQueue.Enqueue(line);
         }
-        private async Task StreamLogsToFiles(string logPath, string errorLogPath) // Stream/Filter/Stamp Logs  
+        private async Task StreamLogsToFiles(string logPath, string errorLogPath)
         {
             using StreamWriter mainWriter = new StreamWriter(logPath, true);
             using StreamWriter errorWriter = new StreamWriter(errorLogPath, true);
 
+            string? lastLine = null;
+            int repeatCount = 0;
+            DateTime lastLineTime = DateTime.Now;
+
             List<string> contextBuffer = new List<string>();
+
             while (serverProcess != null && !serverProcess.HasExited)
             {
                 if (logQueue.TryDequeue(out string? line))
                 {
+                    // Filter unwanted lines
+                    if (string.IsNullOrWhiteSpace(line) || line.Contains("Shader"))
+                        continue;
+
                     string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                     string formattedLine = $"[{timestamp}] {line}";
 
-                    // Filter shader logs
-                    if (line.Contains("Shader"))
-                        continue;
-
-                    mainWriter.WriteLine(formattedLine);
-                    mainWriter.Flush();
-                    WriteToTerminal(formattedLine);
-
-                    contextBuffer.Add(formattedLine);
-                    if (contextBuffer.Count > bufferLimit)
-                        contextBuffer.RemoveAt(0);
-
-                    if (line.Contains("ERROR") || line.Contains("ERR") || line.Contains("Exception"))
+                    if (line == lastLine)
                     {
-                        errorWriter.WriteLine("\n===== ERROR DETECTED =====");
-                        foreach (var prevLine in contextBuffer)
+                        repeatCount++;
+                        continue;
+                    }
+                    else
+                    {
+                        // Write the repeat summary if needed
+                        if (repeatCount > 0)
                         {
-                            errorWriter.WriteLine(prevLine);
+                            string repeatSummary = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] (Previous line repeated {repeatCount} times)";
+                            mainWriter.WriteLine(repeatSummary);
+                            mainWriter.Flush();
+                            WriteToTerminal(repeatSummary);
+                            repeatCount = 0;
                         }
-                        errorWriter.WriteLine("\n==========================");
-                        errorWriter.Flush();
+
+                        // Write the new line
+                        mainWriter.WriteLine(formattedLine);
+                        mainWriter.Flush();
+                        WriteToTerminal(formattedLine);
+                        lastLine = line;
+                        lastLineTime = DateTime.Now;
+
+                        // Update context buffer
+                        contextBuffer.Add(formattedLine);
+                        if (contextBuffer.Count > bufferLimit)
+                            contextBuffer.RemoveAt(0);
+
+                        // Log to error log if it looks like an error
+                        if (line.Contains("ERROR") || line.Contains("ERR") || line.Contains("Exception"))
+                        {
+                            errorWriter.WriteLine("\n===== ERROR DETECTED =====");
+                            foreach (var prev in contextBuffer)
+                                errorWriter.WriteLine(prev);
+                            errorWriter.WriteLine("==========================\n");
+                            errorWriter.Flush();
+                        }
                     }
                 }
                 else
                 {
                     await Task.Delay(100);
                 }
+            }
+
+            // Final write if loop exits with buffered repeats
+            if (repeatCount > 0 && !string.IsNullOrEmpty(lastLine))
+            {
+                string repeatSummary = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] (Final repeat: {repeatCount} more)";
+                mainWriter.WriteLine(repeatSummary);
+                mainWriter.Flush();
+                WriteToTerminal(repeatSummary);
             }
         }
         private string? CopyUserDataToTemp()
