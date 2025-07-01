@@ -26,13 +26,13 @@ namespace NecroNexus
         private static readonly string ProgramBackupFolder = Path.Combine(InstallLocation, "Program Backups");
         private static readonly string ServerConfigPath = Path.Combine(ServerPath, "serverconfig.xml");
         private static readonly string LogsFolder = Path.Combine(ServerPath, "Logs");
-        private static readonly string AdminPath = Path.Combine(ServerPath, "UserDataFolder", "Saves", "serveradmin.xml");
 
         // Server process & logging
         private Process? serverProcess;
         private ConcurrentQueue<string> logQueue = new ConcurrentQueue<string>();
-        private List<string> logBuffer = new List<string>(); // Buffer for last 20 lines
         private readonly int bufferLimit = 20;
+        private readonly string errorScanMarker = ".processed"; // Error Scanner
+        private CancellationTokenSource? errorScanTokenSource = null; // Error Scanner token
 
         #endregion
 
@@ -98,6 +98,7 @@ namespace NecroNexus
         {
             string processName = "7DaysToDieServer";
             WriteToTerminal("[INFO] Locating and terminating 7 Days");
+            errorScanTokenSource?.Cancel(); // kill error scanner
 
             await Task.Run(() =>
             {
@@ -383,6 +384,7 @@ namespace NecroNexus
             }
 
             Process.GetProcessesByName("7DaysToDieServer").ToList().ForEach(p => p.Kill()); // kill any existing 7D Server.
+
             await FileSetup();
             try
             {
@@ -394,6 +396,7 @@ namespace NecroNexus
                 string mainLogPath = Path.Combine(logsFolder, $"log_{logTimestamp}.txt");
                 string errorLogPath = Path.Combine(logsFolder, $"error_{logTimestamp}.txt");
 
+                terminal.Clear(); // Clear the terminal before starting a new session. (otherwise it stacks a huge long log)
                 WriteToTerminal($"🚀 Starting server...");
 
                 // Start the server process
@@ -415,15 +418,18 @@ namespace NecroNexus
                     StartInfo = psi,
                     EnableRaisingEvents = true
                 };
-                serverProcess.OutputDataReceived += (sender, e) => ProcessLogLine(e.Data, mainLogPath, errorLogPath);
-                serverProcess.ErrorDataReceived += (sender, e) => ProcessLogLine(e.Data, mainLogPath, errorLogPath);
+                serverProcess.OutputDataReceived += (sender, e) => ProcessLogLine(e.Data);
+                serverProcess.ErrorDataReceived += (sender, e) => ProcessLogLine(e.Data);
 
                 serverProcess.Start();
                 serverProcess.BeginOutputReadLine();
                 serverProcess.BeginErrorReadLine();
 
                 // ✅ Start monitoring server logs (PASS THE PARAMETERS)
-                _ = Task.Run(() => StreamLogsToFiles(mainLogPath, errorLogPath));
+                errorScanTokenSource?.Cancel(); 
+                errorScanTokenSource = new CancellationTokenSource();
+                _ = Task.Run(() => RunBackgroundErrorScanner(errorScanTokenSource.Token));
+                _ = Task.Run(() => StreamLogsToFiles(mainLogPath));
 
                 // ✅ Start server monitoring to detect crashes
                 monitorTokenSource?.Cancel(); // Stop any old monitor
@@ -491,7 +497,7 @@ namespace NecroNexus
         private const int WM_KEYDOWN = 0x0100;
         private const int VK_RETURN = 0x0D; // Enter key
 
-        private static Process? FindSevenDaysProcess()
+        private static Process? FindSevenDaysProcess() // Locate the 7D Process 
         {
             foreach (Process p in Process.GetProcessesByName("7DaysToDieServer"))
             {
@@ -499,16 +505,17 @@ namespace NecroNexus
             }
             return null;
         }
-        private static void SendEnterKey(IntPtr hWnd)
+        private static void SendEnterKey(IntPtr hWnd) // Send Keys to kill the 7D Server 
         {
             if (hWnd != IntPtr.Zero)
             {
                 SendKeys.SendWait("{ENTER}");
             }
         }
-        private async Task StopServer()
+        private async Task StopServer() // Stop the server 
         {
             WriteToTerminal("[INFO] Searching for 7 Days to Die server process...");
+            errorScanTokenSource?.Cancel(); // kill error scanner
 
             Process? p = FindSevenDaysProcess();
             if (p == null)
@@ -556,89 +563,125 @@ namespace NecroNexus
         }
         #endregion
 
-        private void ProcessLogLine(string? line, string logPath, string errorLogPath) // Process Log Lines 
+        private void ProcessLogLine(string? line) // Process the log lines
         {
             if (string.IsNullOrWhiteSpace(line)) return;
             logQueue.Enqueue(line);
         }
-        private async Task StreamLogsToFiles(string logPath, string errorLogPath)
+        private async Task StreamLogsToFiles(string logPath)// Steam log to file 
         {
             using StreamWriter mainWriter = new StreamWriter(logPath, true);
-            using StreamWriter errorWriter = new StreamWriter(errorLogPath, true);
 
             string? lastLine = null;
             int repeatCount = 0;
             DateTime lastLineTime = DateTime.Now;
-
             List<string> contextBuffer = new List<string>();
 
             while (serverProcess != null && !serverProcess.HasExited)
             {
-                if (logQueue.TryDequeue(out string? line))
+                try
                 {
-                    // Filter unwanted lines
-                    if (string.IsNullOrWhiteSpace(line) || line.Contains("Shader"))
-                        continue;
-
-                    string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                    string formattedLine = $"[{timestamp}] {line}";
-
-                    if (line == lastLine)
+                    if (logQueue.TryDequeue(out string? line))
                     {
-                        repeatCount++;
-                        continue;
-                    }
-                    else
-                    {
-                        // Write the repeat summary if needed
+                        if (string.IsNullOrWhiteSpace(line) || line.Contains("Shader"))
+                            continue;
+
+                        string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                        string formattedLine = $"[{timestamp}] {line}";
+
+                        if (line == lastLine)
+                        {
+                            repeatCount++;
+                            continue;
+                        }
+
                         if (repeatCount > 0)
                         {
                             string repeatSummary = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] (Previous line repeated {repeatCount} times)";
-                            mainWriter.WriteLine(repeatSummary);
-                            mainWriter.Flush();
+                            await mainWriter.WriteLineAsync(repeatSummary);
+                            await mainWriter.FlushAsync();
                             WriteToTerminal(repeatSummary);
                             repeatCount = 0;
                         }
 
-                        // Write the new line
-                        mainWriter.WriteLine(formattedLine);
-                        mainWriter.Flush();
+                        await mainWriter.WriteLineAsync(formattedLine);
+                        await mainWriter.FlushAsync();
                         WriteToTerminal(formattedLine);
+
                         lastLine = line;
                         lastLineTime = DateTime.Now;
 
-                        // Update context buffer
                         contextBuffer.Add(formattedLine);
                         if (contextBuffer.Count > bufferLimit)
                             contextBuffer.RemoveAt(0);
-
-                        // Log to error log if it looks like an error
-                        if (line.Contains("ERROR") || line.Contains("ERR") || line.Contains("Exception"))
-                        {
-                            errorWriter.WriteLine("\n===== ERROR DETECTED =====");
-                            foreach (var prev in contextBuffer)
-                                errorWriter.WriteLine(prev);
-                            errorWriter.WriteLine("==========================\n");
-                            errorWriter.Flush();
-                        }
+                    }
+                    else
+                    {
+                        await Task.Delay(100);
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    await Task.Delay(100);
+                    WriteToTerminal($"❌ Logging error: {ex.Message}");
                 }
             }
 
-            // Final write if loop exits with buffered repeats
             if (repeatCount > 0 && !string.IsNullOrEmpty(lastLine))
             {
                 string repeatSummary = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] (Final repeat: {repeatCount} more)";
-                mainWriter.WriteLine(repeatSummary);
-                mainWriter.Flush();
+                await mainWriter.WriteLineAsync(repeatSummary);
+                await mainWriter.FlushAsync();
                 WriteToTerminal(repeatSummary);
             }
-        }
-        private string? CopyUserDataToTemp()
+        } 
+        private async Task RunBackgroundErrorScanner(CancellationToken token)// Error scanner 
+        {
+            WriteToTerminal("[INFO] Error scanner started...");
+
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    var logFiles = Directory.GetFiles(LogsFolder, "log_*.txt");
+
+                    foreach (var logFile in logFiles)
+                    {
+                        string markerFile = logFile + errorScanMarker;
+                        if (File.Exists(markerFile)) continue; // already scanned
+
+                        string errorFile = logFile.Replace("log_", "error_");
+
+                        var allLines = await File.ReadAllLinesAsync(logFile);
+                        var errorLines = allLines
+                            .Where(line =>
+                                (line.Contains("ERROR") || line.Contains("ERR") || line.Contains("Exception")) &&
+                                !(line.Contains("ERR [EOS]") || line.Contains("ERR [EOS-ACS]")))
+                            .ToList();
+
+                        if (errorLines.Count > 0)
+                        {
+                            await File.WriteAllLinesAsync(errorFile, new[]
+                            {
+                        $"===== Extracted Errors from {Path.GetFileName(logFile)} =====",
+                        ""
+                    }.Concat(errorLines));
+                        }
+
+                        File.WriteAllText(markerFile, "done");
+                        WriteToTerminal($"[SCAN] Finished: {Path.GetFileName(logFile)} ({errorLines.Count} errors)");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    WriteToTerminal($"❌ Error scanner failed: {ex.Message}");
+                }
+
+                await Task.Delay(TimeSpan.FromMinutes(5), token);
+            }
+
+            WriteToTerminal("[INFO] Error scanner stopped.");
+        } 
+        private string? CopyUserDataToTemp()// Copy files for zip/backup 
         {
             try
             {
@@ -663,7 +706,7 @@ namespace NecroNexus
                 WriteToTerminal($"Backup copy failed: {ex.Message}");
                 return null;
             }
-        } // Copy files for zip/backup
+        } 
         private void CompressBackupAsync(string tempBackupPath)
         {
             _ = Task.Run(() =>
@@ -804,7 +847,7 @@ namespace NecroNexus
                 Debug.WriteLine($"FileSetup() failed: {ex.Message}");
             }
         }
-        private static void CreateFolderIfNotExists(string path) // Create folders if not exist
+        private static void CreateFolderIfNotExists(string path) // Create folders if not exist 
         {
             if (!Directory.Exists(path))
             {
@@ -876,11 +919,11 @@ namespace NecroNexus
             }
         }
         private CancellationTokenSource? monitorTokenSource = null; // Track the monitoring of the server
-        protected override void OnFormClosing(FormClosingEventArgs e)
+        protected override void OnFormClosing(FormClosingEventArgs e)// Kill loops when app killed 
         {
             monitorTokenSource?.Cancel(); // stop background loop
             base.OnFormClosing(e);        // continue closing
-        } // Kill loops when app killed
+        } 
         private DateTime lastBackupTime = DateTime.MinValue; // Track the last backup time
 
         #endregion
